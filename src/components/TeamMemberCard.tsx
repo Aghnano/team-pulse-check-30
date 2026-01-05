@@ -1,13 +1,16 @@
 import { WeeklyStatus } from '@/types/status';
 import { RAGStatusBadge } from './RAGStatusBadge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { User, Briefcase, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { User, Briefcase, Users, Pencil, Trash2 } from 'lucide-react';
 
 interface TeamMemberCardProps {
   status: WeeklyStatus;
+  onEdit?: (status: WeeklyStatus) => void;
+  onDelete?: (statusId: string) => void;
 }
 
-export function TeamMemberCard({ status }: TeamMemberCardProps) {
+export function TeamMemberCard({ status, onEdit, onDelete }: TeamMemberCardProps) {
   return (
     <Card className="overflow-hidden transition-all duration-200 hover:shadow-card-hover animate-fade-in">
       <CardHeader className="pb-3">
@@ -23,7 +26,33 @@ export function TeamMemberCard({ status }: TeamMemberCardProps) {
               </p>
             </div>
           </div>
-          <RAGStatusBadge status={status.ragStatus} />
+          <div className="flex items-center gap-2">
+            <RAGStatusBadge status={status.ragStatus} />
+            {(onEdit || onDelete) && (
+              <div className="flex gap-1">
+                {onEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => onEdit(status)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => onDelete(status.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
