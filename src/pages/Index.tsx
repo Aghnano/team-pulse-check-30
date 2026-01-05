@@ -5,10 +5,13 @@ import { StatusForm } from '@/components/StatusForm';
 import { TeamMemberCard } from '@/components/TeamMemberCard';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { TimeRangeSelector } from '@/components/TimeRangeSelector';
+import { EditStatusDialog } from '@/components/EditStatusDialog';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { BarChart3, ClipboardList, Plus, Settings } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface IndexProps {
   teamMembers: TeamMember[];
@@ -17,6 +20,10 @@ interface IndexProps {
 const Index = ({ teamMembers }: IndexProps) => {
   const [statuses, setStatuses] = useState<WeeklyStatus[]>(mockStatuses);
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
+  const [editingStatus, setEditingStatus] = useState<WeeklyStatus | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingStatusId, setDeletingStatusId] = useState<string | null>(null);
 
   const handleSubmitStatus = (newStatus: Omit<WeeklyStatus, 'id' | 'submittedAt'>) => {
     const status: WeeklyStatus = {
@@ -26,6 +33,35 @@ const Index = ({ teamMembers }: IndexProps) => {
     };
     setStatuses((prev) => [status, ...prev]);
   };
+
+  const handleEditStatus = (status: WeeklyStatus) => {
+    setEditingStatus(status);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = (updatedStatus: WeeklyStatus) => {
+    setStatuses((prev) =>
+      prev.map((s) => (s.id === updatedStatus.id ? updatedStatus : s))
+    );
+  };
+
+  const handleDeleteClick = (statusId: string) => {
+    setDeletingStatusId(statusId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deletingStatusId) {
+      setStatuses((prev) => prev.filter((s) => s.id !== deletingStatusId));
+      toast.success('Status update deleted');
+      setDeletingStatusId(null);
+    }
+    setDeleteDialogOpen(false);
+  };
+
+  const deletingStatus = deletingStatusId
+    ? statuses.find((s) => s.id === deletingStatusId)
+    : null;
 
   const currentWeekStatuses = useMemo(() => {
     const today = new Date();
@@ -91,7 +127,12 @@ const Index = ({ teamMembers }: IndexProps) => {
               {currentWeekStatuses.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {currentWeekStatuses.map((status) => (
-                    <TeamMemberCard key={status.id} status={status} />
+                    <TeamMemberCard
+                      key={status.id}
+                      status={status}
+                      onEdit={handleEditStatus}
+                      onDelete={handleDeleteClick}
+                    />
                   ))}
                 </div>
               ) : (
@@ -112,7 +153,12 @@ const Index = ({ teamMembers }: IndexProps) => {
                       .filter(s => !currentWeekStatuses.includes(s))
                       .slice(0, 6)
                       .map((status) => (
-                        <TeamMemberCard key={status.id} status={status} />
+                        <TeamMemberCard
+                          key={status.id}
+                          status={status}
+                          onEdit={handleEditStatus}
+                          onDelete={handleDeleteClick}
+                        />
                       ))}
                   </div>
                 </>
@@ -127,6 +173,20 @@ const Index = ({ teamMembers }: IndexProps) => {
           </TabsContent>
         </Tabs>
       </main>
+
+      <EditStatusDialog
+        status={editingStatus}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSave={handleSaveEdit}
+      />
+
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleConfirmDelete}
+        memberName={deletingStatus?.memberName}
+      />
     </div>
   );
 };
