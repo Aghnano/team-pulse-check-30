@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TimeRange, WeeklyStatus, TeamMember } from '@/types/status';
-import { mockStatuses } from '@/data/mockData';
+import { useState } from 'react';
+import { fetchStatuses, createStatus, clearAllStatuses } from '@/lib/api';
 import { StatusForm } from '@/components/StatusForm';
 import { TeamMemberCard } from '@/components/TeamMemberCard';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
@@ -10,7 +12,7 @@ import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { BarChart3, ClipboardList, Plus, Settings } from 'lucide-react';
+import { BarChart3, ClipboardList, Plus, Settings, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface IndexProps {
@@ -18,20 +20,49 @@ interface IndexProps {
 }
 
 const Index = ({ teamMembers }: IndexProps) => {
-  const [statuses, setStatuses] = useState<WeeklyStatus[]>(mockStatuses);
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
-  const [editingStatus, setEditingStatus] = useState<WeeklyStatus | null>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingStatusId, setDeletingStatusId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  // Fetch statuses from API
+  const { data: statuses = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['statuses'],
+    queryFn: () => fetchStatuses(),
+  });
+
+  // Mutation for creating new status
+  const createStatusMutation = useMutation({
+    mutationFn: createStatus,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['statuses'] });
+      toast.success('Status update submitted!');
+    },
+    onError: (error) => {
+      toast.error('Failed to submit status update');
+      console.error('Create status error:', error);
+    },
+  });
+
+  // Mutation for clearing all statuses
+  const clearStatusesMutation = useMutation({
+    mutationFn: clearAllStatuses,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['statuses'] });
+      toast.success('All updates cleared successfully!');
+    },
+    onError: (error) => {
+      toast.error('Failed to clear updates');
+      console.error('Clear statuses error:', error);
+    },
+  });
+
+  const handleClearAllStatuses = () => {
+    if (window.confirm('Are you sure you want to clear all updates from the database? This action cannot be undone.')) {
+      clearStatusesMutation.mutate();
+    }
+  };
 
   const handleSubmitStatus = (newStatus: Omit<WeeklyStatus, 'id' | 'submittedAt'>) => {
-    const status: WeeklyStatus = {
-      ...newStatus,
-      id: crypto.randomUUID(),
-      submittedAt: new Date().toISOString(),
-    };
-    setStatuses((prev) => [status, ...prev]);
+    createStatusMutation.mutate(newStatus);
   };
 
   const handleEditStatus = (status: WeeklyStatus) => {
@@ -83,6 +114,15 @@ const Index = ({ teamMembers }: IndexProps) => {
               <p className="text-sm text-muted-foreground">Weekly status updates & workload analytics</p>
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => refetch()}
+                disabled={isLoading}
+                title="Refresh data"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
               <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
               <Link to="/team">
                 <Button variant="outline" size="icon">
@@ -95,6 +135,19 @@ const Index = ({ teamMembers }: IndexProps) => {
       </header>
 
       <main className="container py-8">
+        {error && (
+          <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+            Failed to load statuses. The database may not be initialized yet.
+            <Button
+              variant="link"
+              className="ml-2 h-auto p-0 text-destructive underline"
+              onClick={() => refetch()}
+            >
+              Try again
+            </Button>
+          </div>
+        )}
+
         <Tabs defaultValue="dashboard" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="dashboard" className="gap-2">
@@ -119,12 +172,30 @@ const Index = ({ teamMembers }: IndexProps) => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Current Week Status</h2>
-                <span className="text-sm text-muted-foreground">
-                  {currentWeekStatuses.length} of {teamMembers.length} submitted
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    {currentWeekStatuses.length} of {teamMembers.length} submitted
+                  </span>
+                  {statuses.length > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleClearAllStatuses}
+                      disabled={clearStatusesMutation.isPending}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {clearStatusesMutation.isPending ? 'Clearing...' : 'Clear Updates'}
+                    </Button>
+                  )}
+                </div>
               </div>
-              
-              {currentWeekStatuses.length > 0 ? (
+
+              {isLoading ? (
+                <div className="rounded-lg border border-border bg-muted/30 p-12 text-center">
+                  <RefreshCw className="mx-auto h-12 w-12 text-muted-foreground/50 animate-spin" />
+                  <h3 className="mt-4 text-lg font-medium">Loading updates...</h3>
+                </div>
+              ) : currentWeekStatuses.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {currentWeekStatuses.map((status) => (
                     <TeamMemberCard
@@ -168,7 +239,11 @@ const Index = ({ teamMembers }: IndexProps) => {
 
           <TabsContent value="submit" className="animate-fade-in">
             <div className="mx-auto max-w-2xl">
-              <StatusForm teamMembers={teamMembers} onSubmit={handleSubmitStatus} />
+              <StatusForm
+                teamMembers={teamMembers}
+                onSubmit={handleSubmitStatus}
+                isSubmitting={createStatusMutation.isPending}
+              />
             </div>
           </TabsContent>
         </Tabs>
