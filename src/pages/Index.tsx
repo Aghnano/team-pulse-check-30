@@ -1,14 +1,20 @@
 import { useState, useMemo } from 'react';
-import { TimeRange, WeeklyStatus } from '@/types/status';
-import { teamMembers, mockStatuses } from '@/data/mockData';
+import { TimeRange, WeeklyStatus, TeamMember } from '@/types/status';
+import { mockStatuses } from '@/data/mockData';
 import { StatusForm } from '@/components/StatusForm';
 import { TeamMemberCard } from '@/components/TeamMemberCard';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { TimeRangeSelector } from '@/components/TimeRangeSelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, ClipboardList, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
+import { BarChart3, ClipboardList, Plus, Settings } from 'lucide-react';
 
-const Index = () => {
+interface IndexProps {
+  teamMembers: TeamMember[];
+}
+
+const Index = ({ teamMembers }: IndexProps) => {
   const [statuses, setStatuses] = useState<WeeklyStatus[]>(mockStatuses);
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
 
@@ -40,7 +46,14 @@ const Index = () => {
               <h1 className="text-2xl font-bold tracking-tight text-foreground">Team Pulse</h1>
               <p className="text-sm text-muted-foreground">Weekly status updates & workload analytics</p>
             </div>
-            <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+            <div className="flex items-center gap-3">
+              <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+              <Link to="/team">
+                <Button variant="outline" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
