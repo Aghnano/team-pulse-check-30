@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Send, Thermometer } from 'lucide-react';
+import { Send, Thermometer, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface StatusFormProps {
   teamMembers: TeamMember[];
   onSubmit: (status: Omit<WeeklyStatus, 'id' | 'submittedAt'>) => void;
+  isSubmitting?: boolean;
 }
 
 const ragOptions: { value: RAGStatus; label: string; description: string }[] = [
@@ -20,7 +21,7 @@ const ragOptions: { value: RAGStatus; label: string; description: string }[] = [
   { value: 'red', label: 'Red - High Load', description: 'Very busy, need support' },
 ];
 
-export function StatusForm({ teamMembers, onSubmit }: StatusFormProps) {
+export function StatusForm({ teamMembers, onSubmit, isSubmitting = false }: StatusFormProps) {
   const [selectedMember, setSelectedMember] = useState<string>('');
   const [ragStatus, setRagStatus] = useState<RAGStatus | ''>('');
   const [workActivities, setWorkActivities] = useState('');
@@ -28,7 +29,7 @@ export function StatusForm({ teamMembers, onSubmit }: StatusFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedMember || !ragStatus || !workActivities || !customerActivities) {
       toast.error('Please fill in all fields');
       return;
@@ -55,8 +56,6 @@ export function StatusForm({ teamMembers, onSubmit }: StatusFormProps) {
     setRagStatus('');
     setWorkActivities('');
     setCustomerActivities('');
-    
-    toast.success('Status update submitted!');
   };
 
   return (
@@ -147,9 +146,18 @@ export function StatusForm({ teamMembers, onSubmit }: StatusFormProps) {
             />
           </div>
 
-          <Button type="submit" className="w-full gap-2">
-            <Send className="h-4 w-4" />
-            Submit Status Update
+          <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4" />
+                Submit Status Update
+              </>
+            )}
           </Button>
         </form>
       </CardContent>
